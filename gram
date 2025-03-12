@@ -1,0 +1,54 @@
+from hikkatl import loader, utils
+import asyncio
+
+class GramFarmBot(loader.Module):
+    """Автофарм бонусов в @gram_farm_bot"""
+    strings = {"name": "GramFarmBot"}
+    
+    def __init__(self):
+        self.config = loader.ModuleConfig("BOT_USERNAME", "@gram_farm_bot", "Юзернейм бота")
+        self.running = False
+        self.total_earned = 0
+
+    async def goncmd(self, message):
+        """Включает автофарминг"""
+        if self.running:
+            await message.edit("<b>Фарм уже включен!</b>")
+            return
+
+        self.running = True
+        self.total_earned = 0
+        await message.edit("<b>Автофарм запущен!</b>")
+        
+        while self.running:
+            await self._collect_bonus(message)
+
+    async def goffcmd(self, message):
+        """Выключает автофарминг"""
+        self.running = False
+        await message.edit("<b>Автофарм остановлен!</b>")
+
+    async def gfarmcmd(self, message):
+        """Показывает баланс, заработанный с момента включения"""
+        await message.edit(f"<b>Заработано: {self.total_earned} GRAM</b>")
+
+    async def _collect_bonus(self, message):
+        """Метод для автоматического сбора бонусов"""
+        try:
+            await message.client.send_message(self.config["BOT_USERNAME"], "🎁 Бонус")
+            await asyncio.sleep(5)  # Ждем ответ от бота
+
+            async for msg in message.client.iter_messages(self.config["BOT_USERNAME"], limit=5):
+                if "Вы получили" in msg.text:
+                    earned = int(msg.text.split("+")[1].split()[0])
+                    self.total_earned += earned
+                    await message.client.send_message(message.chat_id, f"<b>Получено: {earned} GRAM</b>")
+                    await asyncio.sleep(86400)  # Ждем 24 часа до следующего бонуса
+                    return
+                
+            await message.client.send_message(message.chat_id, "<b>Бонус не был получен. Возможно, он еще недоступен.</b>")
+            await asyncio.sleep(3600)  # Пробуем снова через 1 час
+
+        except Exception as e:
+            await message.client.send_message(message.chat_id, f"<b>Ошибка: {e}</b>")
+            await asyncio.sleep(3600)  # Пробуем снова через 1 час

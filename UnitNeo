@@ -1,0 +1,23 @@
+from hikkatl import loader, utils
+import os
+
+class UnitNeo(loader.Module):
+    """Отправка модулей файлом и ссылкой"""
+    strings = {"name": "UnitNeo"}
+
+    async def neocmd(self, message):
+        """Отправляет модуль файлом и ссылкой"""
+        args = utils.get_args_raw(message)
+        if not args:
+            await message.edit("<b>Использование:</b> .sendmod <имя_модуля>")
+            return
+        
+        module_name = args if args.endswith(".py") else f"{args}.py"
+        module_path = f"modules/{module_name}"
+        
+
+        # Проверяем, есть ли файл локально
+        if os.path.exists(module_path):
+            await message.client.send_file(message.chat_id, module_path, caption=f"🌐 <b>Модуль {module_name}</b>\n🌘 <code>$dlm {download_link}</code>")
+        else:
+            await message.edit(f"⚠️ Модуль <b>{module_name}</b> не найден локально.\n🌐 Ссылка: {download_link}")

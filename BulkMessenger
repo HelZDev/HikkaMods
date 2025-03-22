@@ -4,7 +4,7 @@ import asyncio
 
 
 #meta developer:  @its_helz
-# developer: @Novichok_v_Crypto
+# developer: @Vert5x
 
 class BulkMessenger(loader.Module):
     """📢 Массовая рассылка сообщений с кнопками. Edited by  @its_helz"""

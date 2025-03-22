@@ -1,0 +1,66 @@
+# meta developer: @Its_HelZ
+from .. import loader, utils
+import asyncio
+
+@loader.tds
+class ChatBroadcasterMod(loader.Module):
+    """Модуль для рассылки сообщений в чаты и ЛС"""
+    strings = {"name": "ChatBroadcaster"}
+
+    async def ttrcmd(self, message):
+        """Отправка сообщений в чаты/ЛС: .ttr <chat_id,user_id> <text> [time] [quantity]"""
+        args = utils.get_args_raw(message)
+        reply = await message.get_reply_message()
+
+        if not args:
+            await message.edit("❌ Ошибка: укажите чаты и текст.")
+            return
+
+        parts = args.split(" ", 2)
+
+        if len(parts) < 2:
+            await message.edit("❌ Ошибка: неверный формат команды.")
+            return
+
+        targets = parts[0].split(",")  # Разделяем айди чатов/юзеров
+        text = parts[1]  # Текст сообщения
+        delay = int(parts[2]) if len(parts) > 2 else 0  # Время задержки
+        quantity = int(parts[3]) if len(parts) > 3 else 1  # Количество отправок
+
+        for _ in range(quantity):
+            for target in targets:
+                try:
+                    if reply:
+                        await message.client.send_file(int(target), reply)
+                    else:
+                        await message.client.send_message(int(target), text)
+                except Exception as e:
+                    await message.edit(f"❌ Ошибка при отправке в {target}: {str(e)}")
+            if delay > 0:
+                await asyncio.sleep(delay)
+
+        await message.edit("✅ Рассылка завершена!")
+
+    async def ttidcmd(self, message):
+        """Получить список всех чатов: .ttid"""
+        dialogs = await message.client.get_dialogs()
+        chat_list = [f"{chat.id} - {chat.title}" for chat in dialogs if chat.is_group or chat.is_channel]
+        
+        if not chat_list:
+            await message.edit("❌ Нет доступных чатов.")
+            return
+
+        chat_text = "\n".join(chat_list)
+        await utils.answer(message, f"📜 **Список чатов:**\n\n{chat_text}")
+
+    async def ttuidcmd(self, message):
+        """Получить список всех пользователей в ЛС: .ttuid"""
+        dialogs = await message.client.get_dialogs()
+        user_list = [f"{user.id} - {user.name}" for user in dialogs if user.is_user]
+
+        if not user_list:
+            await message.edit("❌ Нет доступных пользователей.")
+            return
+
+        user_text = "\n".join(user_list)
+        await utils.answer(message, f"📜 **Список пользователей:**\n\n{user_text}")

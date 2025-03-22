@@ -12,19 +12,15 @@ class ChatBroadcasterMod(loader.Module):
         args = utils.get_args_raw(message)
         reply = await message.get_reply_message()
 
-        if not args:
-            await utils.answer(message, "❌ Ошибка: укажите чаты и текст.")
+        if not args and not reply:
+            await utils.answer(message, "❌ Ошибка: укажите чаты и текст или ответьте на сообщение.")
             return
 
-        parts = args.split(" ", 1)
+        parts = args.split(" ", 1) if args else [""]
 
-        if len(parts) < 2 and not reply:
-            await utils.answer(message, "❌ Ошибка: укажите текст или ответьте на сообщение.")
-            return
-
-        chats_raw = parts[0].split(",")  # Разделяем ID чатов/пользователей
+        # Разбираем ID чатов и пользователей
+        chats_raw = parts[0].split(",")
         chats = []
-        
         for chat in chats_raw:
             try:
                 chats.append(int(chat))  # Преобразуем в int
@@ -34,9 +30,9 @@ class ChatBroadcasterMod(loader.Module):
 
         text_and_options = parts[1] if len(parts) > 1 else ""
 
-        # Определяем параметры (время и количество)
+        # Разбираем параметры (текст, время, количество)
         time, quantity = 0, 1
-        text_parts = text_and_options.rsplit(" ", 2)  # Разделяем с конца, т.к. время и количество идут в конце
+        text_parts = text_and_options.rsplit(" ", 2)  # Берем последние 2 аргумента как time и quantity
 
         if len(text_parts) > 2:
             text = text_parts[0]
@@ -49,8 +45,15 @@ class ChatBroadcasterMod(loader.Module):
         else:
             text = text_and_options
 
+        # Если текст пустой и есть реплай, берем текст из реплая
+        if not text and reply:
+            if reply.text:
+                text = reply.text
+            elif reply.caption:
+                text = reply.caption
+
         if not text and not reply:
-            await utils.answer(message, "❌ Ошибка: нет текста или реплая.")
+            await utils.answer(message, "❌ Ошибка: нет текста или реплая с файлом.")
             return
 
         # Отправка сообщений
@@ -61,10 +64,7 @@ class ChatBroadcasterMod(loader.Module):
             for chat in chats:
                 try:
                     if reply:
-                        if reply.photo or reply.document:
-                            await message.client.send_file(chat, reply)
-                        else:
-                            await message.client.send_message(chat, reply.text)
+                        await message.client.send_file(chat, reply, caption=text if text else None)
                     else:
                         await message.client.send_message(chat, text)
                     success += 1
@@ -74,7 +74,7 @@ class ChatBroadcasterMod(loader.Module):
             if time > 0:
                 await asyncio.sleep(time)
 
-        # Отчет о выполнении
+        # Итоговое сообщение
         result_msg = f"✅ Рассылка завершена! Отправлено: {success}"
         if errors:
             result_msg += f"\n⚠️ Ошибки:\n" + "\n".join(errors)

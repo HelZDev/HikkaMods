@@ -3,8 +3,8 @@ from telethon.tl.custom import Button
 import asyncio
 
 
-# edited by:  @its_helz
-#meta developer: @Novichok_v_Crypto
+#meta developer:  @its_helz
+# developer: @Novichok_v_Crypto
 
 class BulkMessenger(loader.Module):
     """📢 Массовая рассылка сообщений с кнопками. Edited by  @its_helz"""

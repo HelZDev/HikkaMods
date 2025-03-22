@@ -1,4 +1,4 @@
-# meta developer: ВашНик
+# meta developer: @Its_Helz
 from .. import loader, utils
 import asyncio
 
@@ -50,7 +50,7 @@ class ChatBroadcasterMod(loader.Module):
                 text = reply.text or reply.caption or "📎 Вложение"
 
         # Если текста всё ещё нет, выдаем ошибку
-        if not text:
+        if not text and not reply.media:
             await utils.answer(message, "❌ Ошибка: нет текста или реплая с файлом.")
             return
 
@@ -61,9 +61,9 @@ class ChatBroadcasterMod(loader.Module):
         for _ in range(quantity):
             for chat in chats:
                 try:
-                    if reply:
+                    if reply and reply.media:
                         await message.client.send_file(
-                            chat, reply, caption=text  # Отправляем текст в caption
+                            chat, reply.media, caption=text
                         )
                     else:
                         await message.client.send_message(chat, text)

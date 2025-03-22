@@ -1,7 +1,7 @@
 from .. import loader
 import asyncio
 
-#meta developer: @its_helz
+#meta developer: @its_helz @Vert5x
 # version: 1.0.0
 # description: Module that sends messages in chats
 

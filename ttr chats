@@ -40,19 +40,17 @@ class ChatBroadcasterMod(loader.Module):
                 time = int(text_parts[1])
                 quantity = int(text_parts[2])
             except ValueError:
-                await utils.answer(message, "❌ Ошибка: некорректные параметры времени/количества.")
-                return
+                text = text_and_options  # Если не числа, значит это часть текста
         else:
             text = text_and_options
 
-        # Если текст пустой и есть реплай, берем текст из реплая
-        if not text and reply:
-            if reply.text:
-                text = reply.text
-            elif reply.caption:
-                text = reply.caption
+        # Если нет текста, но есть реплай → используем текст из реплая или подпись
+        if not text:
+            if reply:
+                text = reply.text or reply.caption or "📎 Вложение"
 
-        if not text and not reply:
+        # Если текста всё ещё нет, выдаем ошибку
+        if not text:
             await utils.answer(message, "❌ Ошибка: нет текста или реплая с файлом.")
             return
 
@@ -64,7 +62,9 @@ class ChatBroadcasterMod(loader.Module):
             for chat in chats:
                 try:
                     if reply:
-                        await message.client.send_file(chat, reply, caption=text if text else None)
+                        await message.client.send_file(
+                            chat, reply, caption=text  # Отправляем текст в caption
+                        )
                     else:
                         await message.client.send_message(chat, text)
                     success += 1

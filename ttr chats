@@ -13,23 +13,23 @@ class ChatBroadcasterMod(loader.Module):
         reply = await message.get_reply_message()
 
         if not args:
-            await message.edit("❌ Ошибка: укажите чаты и текст.")
+            await utils.answer(message, "❌ Ошибка: укажите чаты и текст.")
             return
 
         parts = args.split(" ", 1)
 
         if len(parts) < 2 and not reply:
-            await message.edit("❌ Ошибка: укажите текст или ответьте на сообщение.")
+            await utils.answer(message, "❌ Ошибка: укажите текст или ответьте на сообщение.")
             return
 
-        chats_raw = parts[0].split(",")  # Разделяем айди чатов/юзеров
+        chats_raw = parts[0].split(",")  # Разделяем ID чатов/пользователей
         chats = []
         
         for chat in chats_raw:
             try:
                 chats.append(int(chat))  # Преобразуем в int
             except ValueError:
-                await message.edit(f"❌ Ошибка: '{chat}' не является корректным ID.")
+                await utils.answer(message, f"❌ Ошибка: '{chat}' не является корректным ID.")
                 return
 
         text_and_options = parts[1] if len(parts) > 1 else ""
@@ -44,16 +44,19 @@ class ChatBroadcasterMod(loader.Module):
                 time = int(text_parts[1])
                 quantity = int(text_parts[2])
             except ValueError:
-                await message.edit("❌ Ошибка: некорректные параметры времени/количества.")
+                await utils.answer(message, "❌ Ошибка: некорректные параметры времени/количества.")
                 return
         else:
             text = text_and_options
 
         if not text and not reply:
-            await message.edit("❌ Ошибка: нет текста или реплая.")
+            await utils.answer(message, "❌ Ошибка: нет текста или реплая.")
             return
 
         # Отправка сообщений
+        success = 0
+        errors = []
+
         for _ in range(quantity):
             for chat in chats:
                 try:
@@ -64,12 +67,19 @@ class ChatBroadcasterMod(loader.Module):
                             await message.client.send_message(chat, reply.text)
                     else:
                         await message.client.send_message(chat, text)
+                    success += 1
                 except Exception as e:
-                    await message.edit(f"❌ Ошибка при отправке в {chat}: {str(e)}")
+                    errors.append(f"❌ Ошибка при отправке в {chat}: {str(e)}")
+
             if time > 0:
                 await asyncio.sleep(time)
 
-        await message.edit("✅ Рассылка завершена!")
+        # Отчет о выполнении
+        result_msg = f"✅ Рассылка завершена! Отправлено: {success}"
+        if errors:
+            result_msg += f"\n⚠️ Ошибки:\n" + "\n".join(errors)
+
+        await utils.answer(message, result_msg)
 
     async def ttidcmd(self, message):
         """Получить список всех чатов: .ttid"""
@@ -77,7 +87,7 @@ class ChatBroadcasterMod(loader.Module):
         chat_list = [f"{chat.id} - {chat.title}" for chat in dialogs if chat.is_group or chat.is_channel]
         
         if not chat_list:
-            await message.edit("❌ Нет доступных чатов.")
+            await utils.answer(message, "❌ Нет доступных чатов.")
             return
 
         chat_text = "\n".join(chat_list)
@@ -89,7 +99,7 @@ class ChatBroadcasterMod(loader.Module):
         user_list = [f"{user.id} - {user.name}" for user in dialogs if user.is_user]
 
         if not user_list:
-            await message.edit("❌ Нет доступных пользователей.")
+            await utils.answer(message, "❌ Нет доступных пользователей.")
             return
 
         user_text = "\n".join(user_list)

@@ -67,10 +67,10 @@ class MassSender(loader.Module):
                     else:
                         await self.client.send_message(chat, text if text else reply.text)
                     count += 1
+                    if delay > 0:
+                        await asyncio.sleep(delay)
                 except Exception:
                     pass
-            if delay > 0 and _ < repeat - 1:
-                await asyncio.sleep(delay)
         
         await message.edit(f"✅ Отправлено в {count} чатов {repeat} раз с задержкой {delay} сек.")
 

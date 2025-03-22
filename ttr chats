@@ -1,4 +1,4 @@
-# meta developer: @Its_HelZ
+# meta developer: ВашНик
 from .. import loader, utils
 import asyncio
 
@@ -16,28 +16,58 @@ class ChatBroadcasterMod(loader.Module):
             await message.edit("❌ Ошибка: укажите чаты и текст.")
             return
 
-        parts = args.split(" ", 2)
+        parts = args.split(" ", 1)
 
-        if len(parts) < 2:
-            await message.edit("❌ Ошибка: неверный формат команды.")
+        if len(parts) < 2 and not reply:
+            await message.edit("❌ Ошибка: укажите текст или ответьте на сообщение.")
             return
 
-        targets = parts[0].split(",")  # Разделяем айди чатов/юзеров
-        text = parts[1]  # Текст сообщения
-        delay = int(parts[2]) if len(parts) > 2 else 0  # Время задержки
-        quantity = int(parts[3]) if len(parts) > 3 else 1  # Количество отправок
+        chats_raw = parts[0].split(",")  # Разделяем айди чатов/юзеров
+        chats = []
+        
+        for chat in chats_raw:
+            try:
+                chats.append(int(chat))  # Преобразуем в int
+            except ValueError:
+                await message.edit(f"❌ Ошибка: '{chat}' не является корректным ID.")
+                return
 
+        text_and_options = parts[1] if len(parts) > 1 else ""
+
+        # Определяем параметры (время и количество)
+        time, quantity = 0, 1
+        text_parts = text_and_options.rsplit(" ", 2)  # Разделяем с конца, т.к. время и количество идут в конце
+
+        if len(text_parts) > 2:
+            text = text_parts[0]
+            try:
+                time = int(text_parts[1])
+                quantity = int(text_parts[2])
+            except ValueError:
+                await message.edit("❌ Ошибка: некорректные параметры времени/количества.")
+                return
+        else:
+            text = text_and_options
+
+        if not text and not reply:
+            await message.edit("❌ Ошибка: нет текста или реплая.")
+            return
+
+        # Отправка сообщений
         for _ in range(quantity):
-            for target in targets:
+            for chat in chats:
                 try:
                     if reply:
-                        await message.client.send_file(int(target), reply)
+                        if reply.photo or reply.document:
+                            await message.client.send_file(chat, reply)
+                        else:
+                            await message.client.send_message(chat, reply.text)
                     else:
-                        await message.client.send_message(int(target), text)
+                        await message.client.send_message(chat, text)
                 except Exception as e:
-                    await message.edit(f"❌ Ошибка при отправке в {target}: {str(e)}")
-            if delay > 0:
-                await asyncio.sleep(delay)
+                    await message.edit(f"❌ Ошибка при отправке в {chat}: {str(e)}")
+            if time > 0:
+                await asyncio.sleep(time)
 
         await message.edit("✅ Рассылка завершена!")
 

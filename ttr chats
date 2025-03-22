@@ -8,7 +8,7 @@ class ChatBroadcasterMod(loader.Module):
     strings = {"name": "ChatBroadcaster"}
 
     async def ttrcmd(self, message):
-        """Отправка сообщений в чаты/ЛС: .ttr <chat_id,user_id> <text> [time] [quantity]"""
+        """Отправка сообщений в чаты/ЛС: ttr <chat_id,user_id> <text> [time] [quantity]"""
         args = utils.get_args_raw(message)
         reply = await message.get_reply_message()
 
@@ -82,7 +82,7 @@ class ChatBroadcasterMod(loader.Module):
         await utils.answer(message, result_msg)
 
     async def ttidcmd(self, message):
-        """Получить список всех чатов: .ttid"""
+        """Получить список всех чатов: ttid"""
         dialogs = await message.client.get_dialogs()
         chat_list = [f"{chat.id} - {chat.title}" for chat in dialogs if chat.is_group or chat.is_channel]
         
@@ -94,7 +94,7 @@ class ChatBroadcasterMod(loader.Module):
         await utils.answer(message, f"📜 **Список чатов:**\n\n{chat_text}")
 
     async def ttuidcmd(self, message):
-        """Получить список всех пользователей в ЛС: .ttuid"""
+        """Получить список всех пользователей в ЛС: ttuid"""
         dialogs = await message.client.get_dialogs()
         user_list = [f"{user.id} - {user.name}" for user in dialogs if user.is_user]
 

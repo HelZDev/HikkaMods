@@ -5,7 +5,7 @@ import asyncio
 @loader.tds
 class ChatBroadcasterMod(loader.Module):
     """Модуль для рассылки сообщений в чаты и ЛС"""
-    strings = {"name": "ChatBroadcaster"}
+    strings = {"name": "Echo"}
 
     async def ttrcmd(self, message):
         """Отправка сообщений в чаты/ЛС: ttr <chat_id,user_id> <text> [time] [quantity]"""

@@ -1,12 +1,13 @@
 from .. import loader
 import asyncio
+__version__ = "1.0.0"
 
-#meta developer: @Novichok_v_Crypto
+#meta developer: @its_helz
 
 class MassSender(loader.Module):
     """📢 Массовая рассылка сообщений по чатам."""
 
-    strings = {"name": "MassSender"}
+    strings = {"name": "UtilChat"}
 
     async def client_ready(self, client, db):
         self.client = client

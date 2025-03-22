@@ -2,8 +2,8 @@ from .. import loader
 import asyncio
 
 #meta developer: @its_helz
-#meta version: 1.0.0
-#meta description: Module that sends messages in chats
+# version: 1.0.0
+# description: Module that sends messages in chats
 
 
 class MassSender(loader.Module):

@@ -44,7 +44,7 @@ class MassSender(loader.Module):
         await message.edit(f"📜 Чаты:\n{chat_list}")
 
     async def sendcmd(self, message):
-        """📩 Отправить сообщение (реплай или текст) send text 3 2 """
+        """📩 Отправить сообщение (реплай или текст) пример <<.send text 3 2>> """
         args = message.raw_text.split()
         reply = await message.get_reply_message()
         text = " ".join(args[1:]) if len(args) > 1 else None

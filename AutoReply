@@ -1,4 +1,4 @@
-# meta developer: твой_ник
+# meta developer: @NovaLotus
 from .. import loader, utils
 import os
 import time
@@ -50,7 +50,11 @@ class AutoReplyMod(loader.Module):
         """Задает новое сообщение для автоответчика"""
         text = utils.get_args_raw(message)
         if not text:
-            return await utils.answer(message, "⚠️ Укажите текст автоответа!")
+            reply = await message.get_reply_message()
+            if reply and reply.text:
+                text = reply.text
+            else:
+                return await utils.answer(message, "⚠️ Укажите текст автоответа или ответьте на сообщение!")
 
         self.reply_text = text
         self.db.set("AutoReply", "reply_text", text)

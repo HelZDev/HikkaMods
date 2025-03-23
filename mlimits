@@ -7,7 +7,7 @@ class AutoReplyMod(loader.Module):
     """Автоответчик для новых ЛС с красивым сообщением и изображением"""
 
     strings = {
-        "name": "AutoReply",
+        "name": "4ut0R3pl¥",
         "enabled": "✅ Автоответчик включён",
         "disabled": "❌ Автоответчик выключен",
         "reply_set": "✍️ Сообщение автоответа обновлено",

@@ -1,6 +1,7 @@
 # meta developer: твой_ник
 from .. import loader, utils
 import os
+import time
 
 class AutoReplyMod(loader.Module):
     """Автоответчик для новых ЛС с красивым сообщением и изображением"""
@@ -29,6 +30,8 @@ class AutoReplyMod(loader.Module):
     )
 
     DEFAULT_IMAGE_URL = "https://raw.githubusercontent.com/HelZDev/media-files/refs/heads/main/IMG_20250323_023021_126.jpg"
+
+    REPLY_TIMEOUT = 3600  # 1 час (в секундах)
 
     async def client_ready(self, client, db):
         self.db = db
@@ -66,7 +69,7 @@ class AutoReplyMod(loader.Module):
         await utils.answer(message, self.strings["image_set"])
 
     async def watcher(self, message):
-        """Отправляет автоответ в новых ЛС (кроме ботов) один раз"""
+        """Отправляет автоответ в новых ЛС (кроме ботов) один раз, сбрасывая список через час"""
         if not self.reply_enabled or not message.is_private or message.out:
             return
 
@@ -75,13 +78,18 @@ class AutoReplyMod(loader.Module):
             return  # Не отвечаем ботам
 
         user_id = message.chat_id
-        if user_id in self.replied_chats:
-            return  # Если уже ответили, игнорируем
+        current_time = time.time()
+
+        # Проверяем, когда последний раз отправляли сообщение
+        last_reply_time = self.replied_chats.get(user_id, 0)
+        if current_time - last_reply_time < self.REPLY_TIMEOUT:
+            return  # Если с последнего ответа прошло меньше часа, не отвечаем
 
         reply_text = self.reply_text
         image = self.image_path if self.image_path else self.DEFAULT_IMAGE_URL
 
         await message.client.send_file(user_id, image, caption=reply_text, force_document=False)
 
-        self.replied_chats[user_id] = True
+        # Обновляем время последнего ответа
+        self.replied_chats[user_id] = current_time
         self.db.set("AutoReply", "replied_chats", self.replied_chats)

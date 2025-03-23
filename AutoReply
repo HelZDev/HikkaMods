@@ -48,14 +48,12 @@ class AutoReplyMod(loader.Module):
 
     async def arsetcmd(self, message):
         """Задает новое сообщение для автоответчика"""
-        text = utils.get_args_raw(message)
+        reply = await message.get_reply_message()
+        text = utils.get_args_raw(message) or (reply.text if reply and reply.text else None)
+        
         if not text:
-            reply = await message.get_reply_message()
-            if reply and reply.text:
-                text = reply.text
-            else:
-                return await utils.answer(message, "⚠️ Укажите текст автоответа или ответьте на сообщение!")
-
+            return await utils.answer(message, "⚠️ Укажите текст автоответа или ответьте на сообщение!")
+        
         self.reply_text = text
         self.db.set("AutoReply", "reply_text", text)
         await utils.answer(message, self.strings["reply_set"])

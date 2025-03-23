@@ -3,7 +3,7 @@ from .. import loader, utils
 import os
 
 class AutoReplyMod(loader.Module):
-    """Автоответчик для новых личных чатов с проверкой сообщений и ботов"""
+    """Автоответчик для новых ЛС с красивым сообщением и изображением"""
 
     strings = {
         "name": "AutoReply",
@@ -14,10 +14,26 @@ class AutoReplyMod(loader.Module):
         "no_image": "⚠️ Нет изображения",
     }
 
+    DEFAULT_MESSAGE = (
+        "⭐️ <b>Сообщение доставлено! (Но хозяин в offline...)</b>\n\n"
+        "Не волнуйтесь! Владелец скоро вернется в сеть, а пока…\n\n"
+        "<b>Что можно сделать, чтобы получить ответ быстрее?</b>\n\n"
+        "• <b>1️⃣ Задайте бомбический вопрос!</b>\n"
+        "  • Напишите его в одном сообщении – так будет проще понять, что вам нужно!\n\n"
+        "• <b>2️⃣ Покопайтесь в волшебной книге FAQ!</b>\n"
+        "  • Там могут быть ответы на самые частые вопросы – попробуйте, это сэкономит вам время!\n\n"
+        "• <b>3️⃣ Просто чильте и ждите!</b>\n"
+        "  • Ваш запрос очень важен, и ответ не заставит себя ждать!\n\n"
+        "Спасибо за ваше терпение! ❤️\n\n"
+        "<i>P.S. Если вдруг решите порадовать подарком в Telegram, скорость ответа увеличится в геометрической прогрессии!</i>"
+    )
+
+    DEFAULT_IMAGE_URL = "https://raw.githubusercontent.com/HelZDev/media-files/refs/heads/main/IMG_20250323_023021_126.jpg"
+
     async def client_ready(self, client, db):
         self.db = db
         self.reply_enabled = self.db.get("AutoReply", "enabled", False)
-        self.reply_text = self.db.get("AutoReply", "reply_text", "Привет! Я сейчас не в сети.")
+        self.reply_text = self.db.get("AutoReply", "reply_text", self.DEFAULT_MESSAGE)
         self.image_path = self.db.get("AutoReply", "image_path", None)
         self.replied_chats = self.db.get("AutoReply", "replied_chats", {})
 
@@ -50,46 +66,22 @@ class AutoReplyMod(loader.Module):
         await utils.answer(message, self.strings["image_set"])
 
     async def watcher(self, message):
-        """Отслеживает новые личные чаты и отправляет автоответ только если нет сообщений"""
+        """Отправляет автоответ в новых ЛС (кроме ботов) один раз"""
         if not self.reply_enabled or not message.is_private or message.out:
             return
 
         user = await message.get_sender()
         if user.bot:
-            return  # Игнорируем ботов
+            return  # Не отвечаем ботам
 
         user_id = message.chat_id
         if user_id in self.replied_chats:
-            return  # Уже ответили в этот чат
+            return  # Если уже ответили, игнорируем
 
-        messages = [msg async for msg in message.client.iter_messages(user_id, limit=2)]
-        if len(messages) > 1:
-            return  # В чате уже есть сообщения, пропускаем
+        reply_text = self.reply_text
+        image = self.image_path if self.image_path else self.DEFAULT_IMAGE_URL
 
-        lang = await self.get_lang()
-        reply_text = self.get_localized_reply(lang)
-
-        if self.image_path and os.path.exists(self.image_path):
-            await message.client.send_file(user_id, self.image_path, caption=reply_text)
-        else:
-            await message.reply(reply_text)
+        await message.client.send_file(user_id, image, caption=reply_text, force_document=False)
 
         self.replied_chats[user_id] = True
         self.db.set("AutoReply", "replied_chats", self.replied_chats)
-
-    async def get_lang(self):
-        """Определяет язык Hikka"""
-        lang = self.db.get("hikka.lang", "lang_code", "ru")  # по умолчанию русский
-        return lang
-
-    def get_localized_reply(self, lang):
-        """Возвращает локализованный ответ"""
-        translations = {
-            "ru": self.reply_text,
-            "en": "Hello! I'm currently unavailable.",
-            "es": "¡Hola! No estoy disponible en este momento.",
-            "fr": "Bonjour ! Je ne suis pas disponible pour le moment.",
-            "de": "Hallo! Ich bin momentan nicht verfügbar.",
-            "zh": "你好！我现在不在。",
-        }
-        return translations.get(lang, self.reply_text)

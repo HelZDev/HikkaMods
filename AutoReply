@@ -16,17 +16,17 @@ class AutoReplyMod(loader.Module):
     }
 
     DEFAULT_MESSAGE = (
-        "⭐️ <b>Сообщение доставлено! (Но хозяин в offline...)</b>\n\n"
+        "⭐️ *Сообщение доставлено! (Но хозяин в offline...)*\n\n"
         "Не волнуйтесь! Владелец скоро вернется в сеть, а пока…\n\n"
-        "<b>Что можно сделать, чтобы получить ответ быстрее?</b>\n\n"
-        "• <b>1️⃣ Задайте бомбический вопрос!</b>\n"
+        "*Что можно сделать, чтобы получить ответ быстрее?*\n\n"
+        "• *1️⃣ Задайте бомбический вопрос!*\n"
         "  • Напишите его в одном сообщении – так будет проще понять, что вам нужно!\n\n"
-        "• <b>2️⃣ Покопайтесь в волшебной книге FAQ!</b>\n"
+        "• *2️⃣ Покопайтесь в волшебной книге FAQ!*\n"
         "  • Там могут быть ответы на самые частые вопросы – попробуйте, это сэкономит вам время!\n\n"
-        "• <b>3️⃣ Просто чильте и ждите!</b>\n"
+        "• *3️⃣ Просто чильте и ждите!*\n"
         "  • Ваш запрос очень важен, и ответ не заставит себя ждать!\n\n"
         "Спасибо за ваше терпение! ❤️\n\n"
-        "<i>P.S. Если вдруг решите порадовать подарком в Telegram, скорость ответа увеличится в геометрической прогрессии!</i>"
+        "_P.S. Если вдруг решите порадовать подарком в Telegram, скорость ответа увеличится в геометрической прогрессии!_"
     )
 
     DEFAULT_IMAGE_URL = "https://raw.githubusercontent.com/HelZDev/media-files/refs/heads/main/IMG_20250323_023021_126.jpg"
@@ -90,7 +90,7 @@ class AutoReplyMod(loader.Module):
         reply_text = self.reply_text
         image = self.image_path if self.image_path else self.DEFAULT_IMAGE_URL
 
-        await message.client.send_file(user_id, image, caption=reply_text, force_document=False, parse_mode="html")
+        await message.client.send_file(user_id, image, caption=reply_text, force_document=False, parse_mode="MarkdownV2")
 
         # Обновляем время последнего ответа
         self.replied_chats[user_id] = current_time

@@ -1,9 +1,9 @@
-# meta developer: @its_Helz 
+# meta developer: твой_ник
 from .. import loader, utils
 import os
 
 class AutoReplyMod(loader.Module):
-    """Автоответчик для новых личных чатов с мультиязычной поддержкой"""
+    """Автоответчик для новых личных чатов с проверкой сообщений и ботов"""
 
     strings = {
         "name": "AutoReply",
@@ -50,17 +50,25 @@ class AutoReplyMod(loader.Module):
         await utils.answer(message, self.strings["image_set"])
 
     async def watcher(self, message):
-        """Отслеживает новые личные чаты и отправляет автоответ только один раз"""
+        """Отслеживает новые личные чаты и отправляет автоответ только если нет сообщений"""
         if not self.reply_enabled or not message.is_private or message.out:
             return
 
+        user = await message.get_sender()
+        if user.bot:
+            return  # Игнорируем ботов
+
         user_id = message.chat_id
         if user_id in self.replied_chats:
-            return  # Если уже ответили, игнорируем
+            return  # Уже ответили в этот чат
+
+        messages = [msg async for msg in message.client.iter_messages(user_id, limit=2)]
+        if len(messages) > 1:
+            return  # В чате уже есть сообщения, пропускаем
 
         lang = await self.get_lang()
         reply_text = self.get_localized_reply(lang)
-        
+
         if self.image_path and os.path.exists(self.image_path):
             await message.client.send_file(user_id, self.image_path, caption=reply_text)
         else:

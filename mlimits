@@ -1,379 +1,95 @@
-from asyncio import sleep
+# meta developer: твой_ник
 from .. import loader, utils
-import asyncio
-import re
-from telethon.tl.types import Message, ChatAdminRights
-from telethon import functions, types
-from ..inline.types import InlineCall
+import os
+import time
 
-@loader.tds
-class mlimits(loader.Module):
-    '''dev - @zavarago & @hui'''
+class AutoReplyMod(loader.Module):
+    """Автоответчик для новых ЛС с красивым сообщением и изображением"""
+
     strings = {
-        "name" : "mlimits",
+        "name": "AutoReply",
+        "enabled": "✅ Автоответчик включён",
+        "disabled": "❌ Автоответчик выключен",
+        "reply_set": "✍️ Сообщение автоответа обновлено",
+        "image_set": "🖼 Изображение автоответа обновлено",
+        "no_image": "⚠️ Нет изображения",
     }
-    async def client_ready(self):
-        
-        self._backup_channel, _ = await utils.asset_channel(
-            self._client,
-            "mlimits",
-            "Группа для работы модуля mlimits",
-            silent=True,
-            archive=True,
-            _folder="hikka",
-        )
 
-        await self.client(functions.channels.InviteToChannelRequest(self._backup_channel, ['@']))
-        await self.client(functions.channels.EditAdminRequest(
-                channel=self._backup_channel,
-                user_id="@mine_evo_bot",
-                admin_rights=ChatAdminRights(ban_users=True, post_messages=True, edit_messages=True),
-                rank="EVO",
-            )
-        )
-    def __init__(self):
-        self.bb = False
-        self.limitsxx = False
-        self.limitsx = False
-        self.fw = False
-        self.fww = False
-        self.config = loader.ModuleConfig(
-            loader.ConfigValue(
-                "Sum", "",
-                lambda: "Поставьте сумму которой вы будете проверять лимит\nЧтобы изменить через lscfg пишите sm",
-                validator=loader.validators.String()
-            ),
-            loader.ConfigValue(
-                "dly", 2.0,
-                lambda: "Задержка переводов лимитов",
-                validator=loader.validators.Float()
-            ),
-            loader.ConfigValue(
-                "cmt", ["fw"],
-                lambda: "Включить/выключить автовыполнение команд\nas - Выключать команду 'mcon/mlp' во время убийства босса\nag - Включать команду 'mcon' после убийства босса\nfw - Включать команду 'mcon' после флудвейта\nfww - Включать команду 'lautoset' после флудвейта",
-                validator=loader.validators.MultiChoice(["ag", "as", "fw", 'fww'])
-            )
-        )
+    DEFAULT_MESSAGE = (
+        "⭐️ <b>Сообщение доставлено!</b> (<i>Но хозяин в offline...</i>)\n\n"
+        "Не волнуйтесь! Владелец скоро вернется в сеть, а пока…\n\n"
+        "<b>Что можно сделать, чтобы получить ответ быстрее?</b>\n\n"
+        "🔹 <b>1️⃣ Задайте бомбический вопрос!</b>\n"
+        "  • Напишите его в одном сообщении – так будет проще понять, что вам нужно!\n\n"
+        "🔹 <b>2️⃣ Покопайтесь в волшебной книге <a href='https://t.me/dev_kitten'>FAQ</a>!</b>\n"
+        "  • Там могут быть ответы на самые частые вопросы – попробуйте, это сэкономит вам время!\n\n"
+        "🔹 <b>3️⃣ Просто чильте и ждите!</b>\n"
+        "  • Ваш запрос очень важен, и ответ не заставит себя ждать!\n\n"
+        "<b>Спасибо за ваше терпение! ❤️</b>\n\n"
+        "<i>P.S. Если вдруг решите порадовать подарком в Telegram, скорость ответа увеличится в геометрической прогрессии!</i>"
+    )
 
-    @loader.command()
-    async def mlhelp(self,message):
-        ''' - Помощь для модуля mlimits'''
-        await self.inline.form(
-            text="<b>Ку! Это помощь для модуля mlimits\n\nНажмите продолжить</b>",
-            message=message,
-            reply_markup=[
-                [
-                    {
-                        'text' : 'Продолжить',
-                        'callback' : self.hnext,
-                    },
-                ],
-                [
-                    {
-                        "text" : "🔻 Закрыть",
-                        "action" : "close",
-                    }
-                ]
-            ]
-        )
-    
-    @loader.command()
-    async def mlp(self,message):
-        '''- Перевод лимитов\n[ник игрока] [количество лимитов]'''
-        await self.www(message)
-        dly = self.config["dly"]
-        args = utils.get_args_split_by(message, " ")
-        if len(args) == 1:
-            await utils.answer(message, "🚫 <b>| Ошибка!\n👉 | Введите количество лимитов</b>")
-        if not args:
-            await utils.answer(message, f"🚫 <b>| Ошибка!\n👉 | Введите имя пользователя и количество лимитов</b>")
-        if len(args) > 2:
-            await utils.answer(message, "🚫 <b>| Ошибка!\n👉 | Вы ввели слишком много аргументов</b>")
-        if len(args) == 2:
-            player = args[0]
-            self.db.set(self.name, "args1",args[1])
-            self.db.set(self.name, "player",player)
-            limits = int(args[1])
-            self.db.set(self.name, "limitsf", args[1])
-            limitp = self.config["Sum"]
-            limitsr = 0
-            self.limitsx = True
-            await asyncio.sleep(1)
-            await self.client.send_message("@mine_evo_bot", f"Перевести {player} {limitp}")
-            await utils.answer(message, f"💸 <b>Начинаю перевод лимитов игроку</b> <code>{player}</code> <b>:</b> {limits}")
-            if self.limitsx:
-                while self.limitsx:
-                    limits -= 1
-                    limitsr += 1
-                    limitss = self.db.get(self.name, "limitss","")
-                    self.db.set(self.name, 'limitsr',limitsr)
-                    if limits == 0:
-                        self.limitsx = False
-                    await self.client.send_message("mlimits", f"Перевести {player} {limitss}")
-                    await asyncio.sleep(dly)
-                limits = args[1]
-                limmmm = int(limits) - int(limitsr)
-                self.db.set(self.name, "limmm",limmmm)
-                if limmmm == 0:
-                    await self.client.send_message(message.peer_id, f"✅ <b>Все лимиты игроку <code>{player}</code> переведены:</b> <code>{limits}</code>")
-                if message.out:
-                    await message.delete()
-                
-                
-            else:
-                return
-    @loader.command()
-    async def mstop(self,message):
-        '''- Остановить перевод лимитов'''
-        self.limitsx = False
-        await self.client.send_message(message.peer_id, "⚠️ Вы остановили перевод лимитов")
-        await message.delete()
-    @loader.command()
-    async def mcon(self,message):
-        '''- Продолжить переводить лимиты после перезапуска хикки/фв и т.д.''' 
-        await self.www(message)
-        limmm = self.db.get(self.name, "limmm",0)
-        limitsr = self.db.get(self.name, "limitsr",0)
-        limitsf = self.db.get(self.name, "limitsf",0)
-        player = self.db.get(self.name, "player","")
-        args = self.db.get(self.name, "args1", None)
-        limitp = self.config["Sum"]
-        dly = self.config["dly"]
-        limmm = int(limitsf) - int(limitsr)
-        self.limitsx = True
-        limits = limmm
-        await asyncio.sleep(1)
-        await self.client.send_message("@mine_evo_bot", f"Перевести {player} {limitp}")
-        await utils.answer(message, f"💸 Продолжаю перевод лимитов игроку <code>{player}</code>\nОсталось перевести : <code>{limmm}</code>")
-        if self.limitsx:
-            while self.limitsx:
-                limits -= 1
-                limitsr += 1 
-                self.db.set(self.name, 'limitsr',limitsr)
-                limitsx = self.get("limitsx",0)
-                if limits == 0:
-                    self.limitsx = False
-                limitss = self.db.get(self.name, "limitss", "")
-                await self.client.send_message("mlimits", f"Перевести {player} {limitss}")
-                await asyncio.sleep(dly)
-            limits = limmm
-            limmmm = int(limits) - int(limitsr)
-            self.db.set(self.name,"limmm", limmmm)
-            if limmmm == 0:
-                await self.client.send_message(message.peer_id, f"✅ <b>Все лимиты игроку <code>{player}</code> переведены:</b> <code>{limits}</code>")
-            if message.out:
-                await message.delete()
-    @loader.command()
-    async def lchk(self,message):
-        '''- Посмотреть сколько осталось перевести лимитов и времени до конца перевода'''
-        player = self.db.get(self.name, "player","")
-        limitsr = self.db.get(self.name, "limitsr",0)
-        limitsf = self.db.get(self.name, 'limitsf',0)
-        limitsr = int(limitsf) - int(limitsr)
-        dly = self.config["dly"]
-        time = limitsr * dly
-        ss = int(time) 
-        sss = ss % 60
-        mm = ss // 60
-        hh = ss // 3600 
-        dd = ss // 86400
-        ww = ss // 604800
-        mmth = ss // 2592000
-        y = ss // 31536000
-        mmm = mm % 60
-        hhh = hh % 24
-        ddd = dd % 7
-        www = ww % 4.28
-        mmmth = mmth % 12
-        y = round(y)
-        mmm = round(mmm)
-        sss = round(sss)
-        hhh = round(hhh)
-        ddd = round(ddd)
-        www = round(www)
-        mmmth = round(mmmth)
-        mm = round(mm)
-        hh = round(hh)
-        dd = round(dd)
-        ww = round(ww)
-        mmth = round(mmth)
-        if ss > 2592000:
-            mmth = int(dd) / 30
-        mmth = round(mmth, 1)
-        if mm < 1:
-            await utils.answer(message, f"<b>💸 Осталось переводить игроку <code>{player}</code> : <code>{limitsr}</code>/</b><code>{limitsf}</code>\n⏱ <b>Осталось времени</b> : <i>{sss}с. </i>\n<i>Секунд : </i>{ss}")
-        if hh < 1 and mm > 0:
-            await utils.answer(message, f"<b>💸 Осталось переводить игроку <code>{player}</code> : <code>{limitsr}</code>/</b><code>{limitsf}</code>\n⏱ <b>Осталось времени</b> : <i>{mmm}мин. {sss}с.</i>\n<i>Минут</i> : {mm}\n<i>Секунд : </i>{ss}")
-        if dd < 1 and hh > 0 : 
-            await utils.answer(message, f"<b>💸 Осталось переводить игроку <code>{player}</code> : <code>{limitsr}</code>/</b><code>{limitsf}</code>\n⏱ <b>Осталось времени</b> : <i>{hhh}ч. {mmm}мин. {sss}с.</i>\n<i>Часов : {hh}</i>\n<i>Минут</i> : {mm}\n<i>Секунд : </i>{ss}")
-        if ww < 1 and dd > 0:
-            await utils.answer(message, f"<b>💸 Осталось переводить игроку <code>{player}</code> : <code>{limitsr}</code>/</b><code>{limitsf}</code>\n⏱ <b>Осталось времени</b> : <i>{ddd}д. {hhh}ч. {mmm}мин. {sss}с.</i>\n<i>Дней :</i> {dd}\n<i>Часов : {hh}</i>\n<i>Минут</i> : {mm}\n<i>Секунд : </i>{ss}")
-        if mmth < 1 and ww > 0:
-            await utils.answer(message, f"<b>💸 Осталось переводить игроку <code>{player}</code> : <code>{limitsr}</code>/</b><code>{limitsf}</code>\n⏱ <b>Осталось времени</b> : <i>{www}нед. {ddd}д. {hhh}ч. {mmm}мин. {sss}с.</i>\n<i>Недель : </i>{ww}\n<i>Дней :</i> {dd}\n<i>Часов : {hh}</i>\n<i>Минут</i> : {mm}\n<i>Секунд : </i>{ss}")
-        if y < 1 and mmth > 0:
-            await utils.answer(message, f"<b>💸 Осталось переводить игроку <code>{player}</code> : <code>{limitsr}</code>/</b><code>{limitsf}</code>\n⏱ <b>Осталось времени</b> : <i>{mmmth}мес. {www}нед. {ddd}д. {hhh}ч. {mmm}мин. {sss}с.</i>\n<i>Месяцев : </i>{mmth}\n<i>Недель : </i>{ww}\n<i>Дней :</i> {dd}\n<i>Часов : {hh}</i>\n<i>Минут</i> : {mm}\n<i>Секунд : </i>{ss}")
-        if y > 0:
-            await utils.answer(message, f"<b>💸 Осталось переводить игроку <code>{player}</code> : <code>{limitsr}</code>/</b><code>{limitsf}</code>\n⏱ <b>Осталось времени</b> : <i>{y}г. {mmmth}мес. {www}нед. {ddd}д. {hhh}ч. {mmm}мин. {sss}с.</i>\n<i>Лет : </i>{y}\n<i>Месяцев : </i>{mmth}\n<i>Недель : </i>{ww}\n<i>Дней :</i> {dd}\n<i>Часов : {hh}</i>\n<i>Минут</i> : {mm}\n<i>Секунд : </i>{ss}")
-    @loader.watcher()
-    async def lim(self,message):
-        dly = self.config["dly"]
-        if message.chat_id == 5522271758 and "можно перевести максимум" in message.raw_text:
-            pattern = "можно перевести максимум(.*?)$"
-            match = re.search(pattern, message.raw_text, re.DOTALL)
-            if match:
-                limitss = match.group(1)
-                limitsss = limitss.replace("$","") 
-                self.db.set(self.name,"limitss",limitsss)
-    @loader.watcher()
-    async def bosses_fw(self,message):
-        dly = self.config["dly"]
-        mid = self.db.get(self.name, "mid", None)
-        ag = None
-        ass = None
-        nick = self.get("qq", None)
-        tt = self.db.get(self.name, "tt", None)
-        for c in self.config["cmt"]:
-            if c == "as":
-                ass = True
-            elif c == "ag":
-                ag = True
-            elif c == "fw":
-                self.fw = True
-            elif c == "fww":
-                self.fww = True
-        if self.fw:
-            if self.limitsx:
-                if message.chat_id == mid and "A wait of" in message.raw_text and "seconds is required" in message.raw_text:
-                    fss = message.text.index("A wait of") + len("A wait of")
-                    fsss = message.text.index("seconds is required")
-                    fs = int(message.text[fss:fsss]) + 5
-                    self.limitsx = False
-                    await asyncio.sleep(fs)
-                    await self.mcon(message)
-                    await message.delete()
-        if self.fww:
-            if self.limitsxx:
-                if message.chat_id == mid and "A wait of" in message.raw_text and "seconds is required" in message.raw_text:
-                    fss = message.text.index("A wait of") + len("A wait of")
-                    fsss = message.text.index("seconds is required")
-                    fs = int(message.text[fss:fsss]) + 5
-                    self.limitsxx = False
-                    await asyncio.sleep(fs)
-                    await self.lautosett()
-                    await message.delete()
-        if ass:
-            if self.limitsx:
-                if message.chat_id == 5522271758 and "🔶 Ты выбрал босса" in message.raw_text:
-                    self.limitsx = False
-                    self.bb = True
-        if ag:
-            if self.bb:
-                if message.chat_id == 5522271758 and "для атаки выбери босса" in message.raw_text:
-                    self.bb = False
-                    await asyncio.sleep(dly)
-                    await self.mcon(message)
+    DEFAULT_IMAGE_URL = "https://raw.githubusercontent.com/HelZDev/media-files/refs/heads/main/IMG_20250323_023021_126.jpg"
 
-    @loader.command()
-    async def lautoset(self,message):
-        '''- Автоматически устанавливать лимит\n[Ник игрока] [Задержка]'''
-        args = utils.get_args_split_by(message, " ")
-        if len(args) == 1:
-            await utils.answer(message, "🚫 <b>| Ошибка!\n👉 | Введите задержку</b>")
-        if not args:
-            await utils.answer(message, "🚫 <b>| Ошибка!\n👉 | Введите имя пользователя задержку</b>")
-        if len(args) > 2:
-            await utils.answer(message, "🚫 <b>| Ошибка!\n👉 | Вы ввели слишком много аргументов</b>")
-        if len(args) == 2:
-            chel = args[0]
-            time = args[1]
-            dly = self.config["dly"]
-            limitsf = self.db.get(self.name, "limitsf", None)
-            kolvo = int(limitsf) / (int(time) / int(dly))
-            kolvo = round(int(kolvo))
-            time = str(time)
-            self.set("qq",chel)
-            self.db.set(self.name, "tt", time)
-            limitp = self.config["Sum"]
-            self.limitsxx = True
-            timee = time[-1]
-            if timee in ['1']:
-                await utils.answer(message, f"✅ <b>| Автоматическая установка лимита игроку <code>{chel}</code> раз в <code>{time}</code> секунду <code>{kolvo}</code> раз начата</b>")
-            if timee in ['2', '3', '4']:
-                await utils.answer(message, f"✅ <b>| Автоматическая установка лимита игроку <code>{chel}</code> раз в <code>{time}</code> секунды <code>{kolvo}</code> раз начата</b>")
-            if timee in ['5', '6', '7', '8', '9', '0']:
-                await utils.answer(message, f"✅ <b>| Автоматическая установка лимита игроку <code>{chel}</code> раз в <code>{time}</code> секунд <code>{kolvo}</code> раз начата </b>")
-            time = int(time)
-            if self.limitsxx:
-                while self.limitsxx:
-                    kolvo -= 1 
-                    if kolvo == 0:
-                        self.limitsxx = False
-                    await self.client.send_message("@mine_evo_bot", f"Перевести {chel} {limitp}")
-                    await asyncio.sleep(time)
-    async def www(self,message):
-        chat_entity = await self.client.get_entity("hikka-logs")
-        chat_id = chat_entity.id
-        chat_id = '-100' + str(chat_id)
-        self.db.set(self.name, "mid", int(chat_id))
-    async def lautosett(self):
-        nick = self.get('qq')
-        tt = self.db.get(self.name, "tt", None)
-        dly = self.config["dly"]
-        limitsf = self.db.get(self.name, "limitsf", None)
-        kolvo = int(limitsf) / (int(tt) / int(dly))
-        kolvo = round(int(kolvo))
-        tt = str(tt)
-        self.set("qq",nick)
-        self.db.set(self.name, "tt", tt)
-        limitp = self.config["Sum"]
-        self.limitsxx = True
-        timee = tt[-1]
-        if timee in ['1']:
-            await utils.answer(message, f"✅ <b>| Автоматическая установка лимита игроку <code>{chel}</code> раз в <code>{time}</code> секунду <code>{kolvo}</code> раз начата</b>")
-        if timee in ['2', '3', '4']:
-            await utils.answer(message, f"✅ <b>| Автоматическая установка лимита игроку <code>{chel}</code> раз в <code>{time}</code> секунды <code>{kolvo}</code> раз начата</b>")
-        if timee in ['5', '6', '7', '8', '9', '0']:
-            await utils.answer(message, f"✅ <b>| Автоматическая установка лимита игроку <code>{chel}</code> раз в <code>{time}</code> секунд <code>{kolvo}</code> раз начата </b>")
-        tt = int(tt)
-        if self.limitsxx:
-            while self.limitsxx:
-                kolvo -= 1 
-                if kolvo == 0:
-                    self.limitsxx = False
-                await self.client.send_message("@mine_evo_bot", f"Перевести {chel} {limitp}")
-                await asyncio.sleep(time)
-    @loader.command()
-    async def lastop(self,message):
-        '''Остановить автоматическую установку лимита'''
-        self.limitsxx = False
-        await utils.answer(message, "✅ Автоматическая установка лимита остановлена")
-    @loader.command(alias = 'lsc')
-    async def lscfg(self,message: Message):
-        '''- Установить значение в конфиг\n[Название] [Значение]\nНе работат с параметром cmt'''
-        args = utils.get_args_split_by(message, " ")
-        pp = args[0]
-        zz = args[1]
-        if pp == "dly":
-            try:
-                zz = float(zz)
-                self.config["dly"] = zz
-                await utils.answer(message, f"✅ <b>| Успешно!\n👉 | Параметр {pp} изменён на {zz}</b> ")
-            except ValueError:
-                await utils.answer(message, f"🚫 <b>| Ошибка!\n👉 | Укажите число в значении!</b>")
+    REPLY_TIMEOUT = 3600  # 1 час (в секундах)
 
-        if pp == "sm":
-            self.config["Sum"] = zz
-            await utils.answer(message, f"✅ <b>| Успешно!\n👉 | Параметр Sum изменён на {zz}</b> ")
+    async def client_ready(self, client, db):
+        self.db = db
+        self.reply_enabled = self.db.get("AutoReply", "enabled", False)
+        self.reply_text = self.db.get("AutoReply", "reply_text", self.DEFAULT_MESSAGE)
+        self.image_path = self.db.get("AutoReply", "image_path", None)
+        self.replied_chats = self.db.get("AutoReply", "replied_chats", {})
 
-    async def hnext(self, call: InlineCall):
-        await call.edit(
-            text="<b>1. Установите сумму для проверки лимита игрока(Свой лимит или 0.01 своего лимита). Сделать это можно через .lscfg(alias=lsc) параметр sm или через .config mlimits\n\n2. Установите задержку. Можно также через lscfg параметр dly или через .config\n\n3. Начните переводить лимиты командой .mlp\n\n4. Чтобы автоматически менялся лимит если игрок повышает уровень нужно написать команду .lautoset\n\n5. Советую ставить в lautoset 300 секунд т.е 5 минут\n\n6. Чтобы остановить перевод лимитов пишите .mstop | Продолжить .mcon\n\n Удачного пользования!</b>",
-            reply_markup=[
-                [
-                    {
-                        "text" : "🔻 Закрыть",
-                        "action" : "close",
-                    }
-                ]
-            ]
-        )
+    async def artogglecmd(self, message):
+        """Включает/выключает автоответчик"""
+        self.reply_enabled = not self.reply_enabled
+        self.db.set("AutoReply", "enabled", self.reply_enabled)
+        await utils.answer(message, self.strings["enabled"] if self.reply_enabled else self.strings["disabled"])
+
+    async def arsetcmd(self, message):
+        """Задает новое сообщение для автоответчика"""
+        text = utils.get_args_raw(message)
+        if not text:
+            return await utils.answer(message, "⚠️ Укажите текст автоответа!")
+
+        self.reply_text = text
+        self.db.set("AutoReply", "reply_text", text)
+        await utils.answer(message, self.strings["reply_set"])
+
+    async def arimagecmd(self, message):
+        """Задает изображение для автоответчика"""
+        reply = await message.get_reply_message()
+        if not reply or not reply.media:
+            return await utils.answer(message, self.strings["no_image"])
+
+        file_path = f"{os.getcwd()}/auto_reply.jpg"
+        await reply.download_media(file_path)
+        self.image_path = file_path
+        self.db.set("AutoReply", "image_path", file_path)
+        await utils.answer(message, self.strings["image_set"])
+
+    async def watcher(self, message):
+        """Отправляет автоответ в новых ЛС (кроме ботов) один раз, сбрасывая список через час"""
+        if not self.reply_enabled or not message.is_private or message.out:
+            return
+
+        user = await message.get_sender()
+        if user.bot:
+            return  # Не отвечаем ботам
+
+        user_id = message.chat_id
+        current_time = time.time()
+
+        # Проверяем, когда последний раз отправляли сообщение
+        last_reply_time = self.replied_chats.get(user_id, 0)
+        if current_time - last_reply_time < self.REPLY_TIMEOUT:
+            return  # Если с последнего ответа прошло меньше часа, не отвечаем
+
+        reply_text = self.reply_text
+        image = self.image_path if self.image_path else self.DEFAULT_IMAGE_URL
+
+        await message.client.send_file(user_id, image, caption=reply_text, parse_mode="HTML", force_document=False)
+
+        # Обновляем время последнего ответа
+        self.replied_chats[user_id] = current_time
+        self.db.set("AutoReply", "replied_chats", self.replied_chats)

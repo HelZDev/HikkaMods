@@ -2,7 +2,7 @@ from .. import loader
 import asyncio
 
 #meta developer: @its_helz @Vert5x
-# version: 1.1.0
+# version: 1.2.0
 # description: Module that sends messages in chats and users
 
 
@@ -41,7 +41,7 @@ class MassSender(loader.Module):
         await message.edit(f"✅ Добавлено {len(args)} пользователей.")
 
     async def importuserscmd(self, message):
-        """📥 Импортировать пользователей из публичного чата"""
+        """📥 Импортировать пользователей из публичного чата и отправить их список"""
         chat = await message.get_chat()
         if not chat:
             return await message.edit("⚠️ Ошибка получения чата.")
@@ -53,7 +53,14 @@ class MassSender(loader.Module):
         
         self.users.extend(users)
         self.db.set(self.strings["name"], "users", self.users)
-        await message.edit(f"✅ Импортировано {len(users)} пользователей.")
+        
+        chat_name = chat.title if chat.title else "неизвестный чат"
+        user_list = "\n".join([f"@{user}" for user in users]) if users else "📭 Нет новых пользователей."
+        
+        await message.edit(f"✅ Импортировано {len(users)} пользователей из {chat_name}.")
+        
+        if users:
+            await self.client.send_message(message.chat_id, f"📜 Импортированные пользователи из {chat_name}:\n{user_list}")
 
     async def sendcmd(self, message):
         """📩 Отправить сообщение (реплай или текст) пример <<.send text 3 2>> """

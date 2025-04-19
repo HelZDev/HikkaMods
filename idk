@@ -1,0 +1,292 @@
+# -*- coding: utf-8 -*-
+from .. import loader, utils
+import ast
+import re
+import logging
+from typing import List, Dict, Optional
+import base64
+import zlib
+import hashlib
+
+@loader.tds
+class AntiDangerMod(loader.Module):
+    """Лучший модуль для проверки безопасности Hikka-модулей"""
+
+    strings = {
+        "name": "AntiDanger",
+        "no_reply": "<b>⛔ Ошибка:</b> Ответь на сообщение с модулем (.py файл)!",
+        "reqj": "🪐 Канал сборник различных модулей!",
+        "analyzing": "<b>🔍 Анализ:</b> Идёт проверка кода...",
+        "report_header": "<b>📊 Отчёт по безопасности модуля</b>",
+        "safe": "<b>✅ Статус:</b> Безопасен (Score: {score}/100)",
+        "warning": "<b>⚠️ Статус:</b> Средний риск (Score: {score}/100)",
+        "danger": "<b>⛔ Статус:</b> Высокий риск (Score: {score}/100)",
+        "critical": "<b>🚨 Статус:</b> Критическая угроза (Score: {score}/100)",
+        "details": "<b>📋 Детали анализа:</b>\n{details}",
+        "no_issues": "✔️ Никаких угроз не обнаружено",
+        "summary": "\n<b>📈 Итог:</b> {summary}"
+    }
+    
+    
+    async def client_ready(self, client, db):
+        self.db = db
+        self.client = client
+        
+        await self.request_join(
+            "@NovaLotus","@Its_HelZ","@NovaLotus","@avanmarketchat",
+            (
+                self.strings['reqj']
+            ),
+            )
+
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+        self.danger_patterns = {
+            "session_access": {
+                "desc": "Доступ к сессии/клиенту",
+                "patterns": [
+                    r"self\.client\.(start|connect|disconnect|invoke|download_media|upload_file)",
+                    r"telethon\.sessions\.(StringSession|SQLiteSession)",
+                    r"client\.(sign_in|sign_up|log_out|export_session)",
+                ],
+                "weight": 50
+            },
+            "file_system": {
+                "desc": "Работа с файловой системой",
+                "patterns": [
+                    r"os\.(remove|unlink|system|rename|chmod|chown)", r"shutil\.rmtree",
+                    r"open\(.+[\"\']w[\"\']",  # Открытие файла на запись
+                    r"os\.path\.(join|split)\s*\+\s*[\"\']/[^\"\']*session",
+                ],
+                "weight": 25
+            },
+            "network": {
+                "desc": "Сетевые операции",
+                "patterns": [
+                    r"requests\.(get|post|put|delete)", r"aiohttp\.ClientSession",
+                    r"socket\.(connect|bind|listen)", r"urllib\.request\.urlopen",
+                ],
+                "weight": 20
+            },
+            "terminal": {
+                "desc": "Запуск команд/терминал",
+                "patterns": [
+                    r"os\.system\(", r"subprocess\.(run|call|Popen)\(", r"exec\(",
+                    r"eval\(", r"platform\.system\(",
+                ],
+                "weight": 35
+            },
+            "account_manipulation": {
+                "desc": "Манипуляции с аккаунтом",
+                "patterns": [
+                    r"UpdateProfile\(", r"DeleteAccount\(", r"LogOut\(",
+                    r"UpdateTwoFactorSettings\(", r"ResetAuthorization\(",
+                ],
+                "weight": 40
+            },
+            "crypto": {
+                "desc": "Криптография",
+                "patterns": [
+                    r"cryptography\.", r"hashlib\.(md5|sha\d+)\(", r"base64\.(encode|decode)",
+                    r"RSA\.(generate|encrypt)", r"AES\.",
+                ],
+                "weight": 25
+            },
+            "memory": {
+                "desc": "Управление памятью",
+                "patterns": [
+                    r"ctypes\.(cast|pointer)", r"mmap\.", r"marshal\.(dump|load)",
+                    r"pickle\.(dump|load)",
+                ],
+                "weight": 30
+            },
+            "reflection": {
+                "desc": "Рефлексия/интроспекция",
+                "patterns": [
+                    r"getattr\(.+[\"\']__[^\"\']+[\"\']",  # Доступ к приватным атрибутам
+                    r"setattr\(", r"__import__\(",
+                ],
+                "weight": 25
+            },
+            "privilege": {
+                "desc": "Привилегии/эскалация",
+                "patterns": [
+                    r"sudo\(", r"setuid\(", r"setgid\(", r"chroot\(",
+                ],
+                "weight": 45
+            },
+            "obfuscation": {
+                "desc": "Обфускация/сокрытие",
+                "patterns": [
+                    r"compile\(", r"zlib\.(compress|decompress)", r"exec\(\w+\(\)",
+                    r"eval\(\w+\(\)", r"base64\.[bade][a-zA-Z0-9+/=]{20,}",
+                ],
+                "weight": 40
+            }
+        }
+        self.safe_contexts = {
+            "hikka": ["self.db", "self.inline", "self.config", "utils.get", "utils.run"],
+            "telegram": ["self.client.send_message", "self.client.get_me", "self.client.edit_message",
+                         "self.client.get_entity", "self.client.iter_participants"],
+            "logging": ["logging\.(info|error|warning)", "logger\.(info|error)"],
+            "standard": ["print\(", "open\(.+[\"\']r[\"\']"]  # Чтение файлов безопасно
+        }
+
+    async def anticmd(self, message):
+        """Проверяет модуль. Используй: .anti в ответ на .py"""
+        reply = await message.get_reply_message()
+        if not reply or not reply.file or not reply.file.name.endswith(".py"):
+            await utils.answer(message, self.strings["no_reply"])
+            return
+
+        await utils.answer(message, self.strings["analyzing"])
+        code_bytes = await reply.download_media(bytes)
+        code = code_bytes.decode("utf-8")
+
+        report = self.analyze_code(code)
+        score = report["score"]
+        details = report["details"]
+        summary = report["summary"]
+
+        if score >= 90:
+            header = self.strings["safe"].format(score=score)
+        elif score >= 70:
+            header = self.strings["warning"].format(score=score)
+        elif score >= 40:
+            header = self.strings["danger"].format(score=score)
+        else:
+            header = self.strings["critical"].format(score=score)
+
+        response = f"{self.strings['report_header']}\n{header}"
+        if details:
+            response += f"\n{self.strings['details'].format(details=details)}"
+        response += f"{self.strings['summary'].format(summary=summary)}"
+
+        await utils.answer(message, response)
+
+    def analyze_code(self, code: str) -> Dict[str, any]:
+        """Глубокий анализ кода"""
+        score = 100
+        findings = {}
+        complexity = 0
+
+        try:
+            tree = ast.parse(code)
+            for node in ast.walk(tree):
+                self.check_ast_node(node, findings, code)
+                complexity += self.calculate_complexity(node)
+        except SyntaxError as e:
+            findings["Синтаксические ошибки"] = [f"• Ошибка: {str(e)}"]
+            score -= 20
+
+        for category, data in self.danger_patterns.items():
+            category_findings = []
+            seen_lines = set()
+            for pattern in data["patterns"]:
+                matches = re.finditer(pattern, code, re.MULTILINE)
+                for match in matches:
+                    line = code.count("\n", 0, match.start()) + 1
+                    if line not in seen_lines and not self.is_safe_context(match.group(), code, match.start()):
+                        category_findings.append(f"• <code>{match.group()}</code> (строка {line})")
+                        seen_lines.add(line)
+                        score -= data["weight"] // (1 + complexity // 10)
+            if category_findings:
+                findings[data["desc"]] = category_findings
+
+        imports = self.check_imports(code)
+        if imports:
+            findings["Подозрительные импорты"] = imports
+            score -= min(len(imports) * 5, 20)
+
+        obfuscation = self.detect_obfuscation(code)
+        if obfuscation:
+            findings["Потенциальная обфускация"] = obfuscation
+            score -= 30
+
+        score = max(0, min(100, score))
+        summary = self.generate_summary(findings, score, complexity)
+
+        details = ""
+        for category, issues in findings.items():
+            details += f"\n<b>{category}:</b>\n" + "\n".join(sorted(issues))
+        if not details:
+            details = self.strings["no_issues"]
+
+        return {"score": score, "details": details, "summary": summary}
+
+    def check_ast_node(self, node: ast.AST, findings: Dict[str, List[str]], code: str):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            func_name = self.get_full_func_name(node.func)
+            if any(x in func_name for x in ["eval", "exec", "system"]):
+                findings.setdefault("Динамическое выполнение", []).append(f"• <code>{func_name}</code> (строка {node.lineno})")
+
+    def check_imports(self, code: str) -> List[str]:
+        findings = []
+        dangerous_libs = ["os", "subprocess", "shutil", "requests", "socket", "cryptography", "ctypes"]
+        code_lines = code.splitlines()
+        for i, line in enumerate(code_lines, 1):
+            if "import" in line or "from" in line:
+                for lib in dangerous_libs:
+                    if lib in line and not self.is_safe_context(lib, code, line.find(lib)):
+                        findings.append(f"• <code>{lib}</code> (строка {i})")
+        return findings
+
+    def detect_obfuscation(self, code: str) -> List[str]:
+        findings = []
+        encoded = re.findall(r"b?['\"][A-Za-z0-9+/=]{20,}['\"]", code)
+        for enc in encoded:
+            try:
+                decoded = base64.b64decode(enc[1:-1]).decode("utf-8", errors="ignore")
+                if any(c.isalnum() for c in decoded):
+                    findings.append(f"• Закодированная строка (base64): <code>{enc[:20]}...</code>")
+            except:
+                pass
+        if "zlib.decompress" in code:
+            findings.append("• Использование декомпрессии")
+        if self.calculate_entropy(code) > 7.5:  # Увеличил порог
+            findings.append("• Высокая энтропия кода")
+        return findings
+
+    def calculate_entropy(self, code: str) -> float:
+        if not code:
+            return 0.0
+        length = len(code)
+        counts = {}
+        for char in code:
+            counts[char] = counts.get(char, 0) + 1
+        entropy = 0
+        for count in counts.values():
+            p = count / length
+            entropy -= p * (p and __import__("math").log2(p))
+        return entropy
+
+    def calculate_complexity(self, node: ast.AST) -> int:
+        complexity = 0
+        if isinstance(node, (ast.If, ast.For, ast.While, ast.Try)):
+            complexity += 2
+        elif isinstance(node, ast.Call):
+            complexity += 1
+        return complexity
+
+    def generate_summary(self, findings: Dict, score: int, complexity: int) -> str:
+        threats = len(findings)
+        if score == 100:
+            return "Модуль полностью безопасен."
+        elif score >= 70:
+            return f"Найдено {threats} потенциальных рисков. Проверьте детали."
+        elif score >= 40:
+            return f"Обнаружено {threats} серьёзных угроз. Используйте осторожно."
+        else:
+            return f"Критические уязвимости ({threats}). Не используйте."
+
+    def is_safe_context(self, match: str, code: str, pos: int) -> bool:
+        context_start = max(0, pos - 100)
+        context = code[context_start:pos + len(match) + 100]
+        return any(pattern in context for ctx in self.safe_contexts.values() for pattern in ctx)
+
+    def get_full_func_name(self, node: ast.Attribute) -> str:
+        if isinstance(node.value, ast.Name):
+            return f"{node.value.id}.{node.attr}"
+        elif isinstance(node.value, ast.Attribute):
+            return f"{self.get_full_func_name(node.value)}.{node.attr}"
+        return node.attr

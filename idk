@@ -33,7 +33,13 @@ class AntiDangerMod(loader.Module):
         self.client = client
         
         await self.request_join(
-            "@NovaLotus","@Its_HelZ","@NovaLotus","@avanmarketchat",
+            "@NovaLotus",
+            (
+                self.strings['reqj']
+            ),
+            )
+await self.request_join(
+            "@avanmarketchat",
             (
                 self.strings['reqj']
             ),
